@@ -47,6 +47,7 @@ void do_it(size_t  raw_data_size, unsigned long long base_address, unsigned int 
         printf("ERROR: Failed to disassemble given code!\n");
 
     cs_close(&handle);
+    free(section_buffer);
 }
 
 void handle_pe(FILE *fp, unsigned int depth) {
@@ -106,6 +107,7 @@ void handle_elf(FILE *fp, unsigned int depth) {
 
     unsigned long long base_address = ELF_HDR.e_entry;
     do_it(raw_data_size, base_address, depth, fp, base_address); // lmfa0
+    free(sections);
 }
 
 int main(int argc, char**argv) {
