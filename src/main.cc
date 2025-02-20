@@ -3,21 +3,30 @@
 void rop_search(cs_insn *memory, size_t count, unsigned long long base_address, unsigned int depth) {
 
     if (memory[count].address < base_address) {
-        printf("0x%llx", memory[count].address);
+        std::cout << std::hex << memory[count].address;
         return;
     }
 
-    printf("0x%llx: ", memory[count].address);
+    std::cout << std::hex << memory[count].address << ": ";
     for (size_t j = count - depth; j < count; j++) {
-        printf("%s %s; ", memory[j].mnemonic, memory[j].op_str);
+        std::cout <<  memory[j].mnemonic << " " << memory[j].op_str << "; ";
     }
 }
 
-void do_it(size_t  raw_data_size, unsigned long long base_address, unsigned int depth,FILE *fp, size_t  p_t_rawdata) {
+void do_it(size_t  raw_data_size, unsigned long long base_address, unsigned int depth,FILE *fp, size_t  p_t_rawdata, cs_arch arch) {
 
     cs_insn *insn;
     csh handle;
     size_t count;
+    cs_mode mode;
+
+    if (arch == CS_ARCH_X86) {
+        mode = CS_MODE_64;
+    } else if (arch == CS_ARCH_AARCH64) {
+        mode = CS_MODE_LITTLE_ENDIAN;
+    } else if (arch == CS_ARCH_ARM) {
+        mode = CS_MODE_ARM; // future check if its thumb or not
+    }
 
     fseek(fp, 0 ,SEEK_SET);
     uint8_t *section_buffer = (uint8_t *)malloc(raw_data_size);
@@ -25,26 +34,37 @@ void do_it(size_t  raw_data_size, unsigned long long base_address, unsigned int 
     fseek(fp, p_t_rawdata ,SEEK_SET);
     fread(section_buffer, raw_data_size, 1, fp);
 
-    if (cs_open(CS_ARCH_X86, CS_MODE_64, &handle) != CS_ERR_OK) {
+    if (cs_open(arch, mode, &handle) != CS_ERR_OK) {
         std::cout << "Error occurred" << std::endl;
         exit(-1);
     }
 
     count = cs_disasm(handle, section_buffer, raw_data_size-1, base_address, 0, &insn);
-    int c = 0;
+
     if (count > 0) {
         for (size_t j = 0; j < count; j++) {
-            if (insn[j].bytes[0] == 0xc3) {
+            if (insn[j].bytes[0] == 0xc3 && arch == CS_ARCH_X86) {
                 for (int i = 0; i < depth; i++) {
                     rop_search(insn, j, base_address, depth - i);
-                    printf("%s %s\n" , insn[j].mnemonic, insn[j].op_str);
+                    std::cout <<  insn[j].mnemonic << " " << insn[j].op_str << std::endl;
+                }
+            } else if (arch == CS_ARCH_AARCH64 && (strcmp(insn[j].mnemonic, "ret") == 0)) {
+                for (int i = 0; i < depth; i++) {
+                    rop_search(insn, j, base_address, depth - i);
+                    std::cout <<  insn[j].mnemonic << std::endl;
+                }
+            } else if (arch == CS_ARCH_ARM && (strcmp(insn[j].mnemonic, "ret") == 0)) {
+                for (int i = 0; i < depth; i++) {
+                    rop_search(insn, j, base_address, depth - i);
+                    std::cout <<  insn[j].mnemonic << std::endl;
                 }
             }
         }
 
         cs_free(insn, count);
-    } else
-        printf("ERROR: Failed to disassemble given code!\n");
+    } else {
+        std::cout << "Failed to disassemble given code!" << std::endl;
+    }
 
     cs_close(&handle);
     free(section_buffer);
@@ -75,13 +95,29 @@ void handle_pe(FILE *fp, unsigned int depth) {
         //     printf("%s is executable section\n", (char*)section.Name);
         // },
     }
+    // for pe files only support for x86-64 is implemented
+    do_it(raw_data_size, entry_point + VA, depth, fp, p_t_rawdata, CS_ARCH_X86);
+}
 
-    do_it(raw_data_size, entry_point + VA, depth, fp, p_t_rawdata);
+
+cs_arch get_arch(elf64_hdr ELF_HDR) {
+    if (ELF_HDR.e_machine == EM_AARCH64 && ELF_HDR.e_ident[EI_CLASS] == ELFCLASS64) {
+        return CS_ARCH_AARCH64;
+    } else if (ELF_HDR.e_machine == EM_X86_64 && ELF_HDR.e_ident[EI_CLASS] == ELFCLASS64) {
+        return CS_ARCH_X86;
+    } else if (ELF_HDR.e_machine == EM_ARM && ELF_HDR.e_ident[EI_CLASS] == ELFCLASS32) {
+        return CS_ARCH_ARM;
+    } else {
+        std::cout << "idk man probably not implemented" << std::endl;
+        exit(-1);
+    }
 }
 
 void handle_elf(FILE *fp, unsigned int depth) {
     fseek(fp,0,SEEK_SET);
     fread(&ELF_HDR, sizeof(elf64_hdr), 1, fp);
+
+    cs_arch arch = get_arch(ELF_HDR);
 
     int shstrndx = ELF_HDR.e_shstrndx;
 
@@ -106,7 +142,7 @@ void handle_elf(FILE *fp, unsigned int depth) {
     }
 
     unsigned long long base_address = ELF_HDR.e_entry;
-    do_it(raw_data_size, base_address, depth, fp, base_address); // lmfa0
+    do_it(raw_data_size, base_address, depth, fp, base_address, arch); // lmfa0
     free(sections);
 }
 
@@ -130,7 +166,7 @@ int main(int argc, char**argv) {
     fread(&sig, 4, 1, fp);
     if ((uint16_t)sig == ROP_IMAGE_DOS_SIGNATURE) {
         handle_pe(fp, depth);
-    } else if (sig == 0x464c457f){
+    } else if (sig == 0x464c457f) { // THIS WONT WORK IF BINARY IS IN MSB FORMAT :(
         handle_elf(fp, depth);
     } else {
         fputs("invalid file format!\n", stderr);

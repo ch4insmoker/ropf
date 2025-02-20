@@ -1,6 +1,5 @@
 #pragma once
-#include <stdio.h>
-#include <string.h>
+#include <cstring>
 #include <inttypes.h>
 #include <capstone/capstone.h>
 #include <iostream>
@@ -16,8 +15,8 @@ typedef unsigned short WORD;
 typedef unsigned long DWORD;
 typedef unsigned long long QWORD;
 typedef unsigned long LONG;
-typedef __int64 LONGLONG;
-typedef unsigned __int64 ULONGLONG;
+typedef signed long long LONGLONG;
+typedef unsigned long long ULONGLONG;
 
 #define ROP_IMAGE_NT_OPTIONAL_HDR32_MAGIC       0x10b
 #define ROP_IMAGE_NT_OPTIONAL_HDR64_MAGIC       0x20b
@@ -357,6 +356,26 @@ struct elf64_sym {
     Elf64_Addr    st_value; 
     Elf64_Xword   st_size;  
 };
+
+#define EI_MAG0     0
+#define EI_MAG1     1
+#define EI_MAG2     2
+#define EI_MAG3     3
+#define EI_CLASS    4
+#define EI_DATA     5
+#define EI_VERSION  6
+#define EI_OSABI    7
+#define EI_PAD      8
+
+#define ELFCLASSNONE 0
+#define ELFCLASS32   1
+#define ELFCLASS64   2
+#define ELFCLASSNUM  3
+
+#define EM_AARCH64 183
+#define EM_X86_64  62
+#define EM_ARM     40
+
 
 ROP_IMAGE_DOS_HEADER DOS_HDR;
 ROP_IMAGE_NT_HEADERS64 NT_HDR;

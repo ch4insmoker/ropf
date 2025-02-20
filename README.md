@@ -5,12 +5,13 @@
 
 ## Todo
 1. add support for 32 bit..
-2. add support for arm
-3. add support for other executable sections besides .text (if any)
+2. add support for other executable sections besides .text (if any)
+3. fix bug related to printing addresses
+4. add support for instructions other then ret (bx, jcc...)
 
 ## Compiling
 ```
-git clone https://github.com/ch4insmoker/ropf
+git clone --recursive https://github.com/ch4insmoker/ropf // recursive to include capstone lib
 cd ropf
 mkdir build
 cd build
