@@ -166,7 +166,7 @@ int main(int argc, char**argv) {
     fread(&sig, 4, 1, fp);
     if ((uint16_t)sig == ROP_IMAGE_DOS_SIGNATURE) {
         handle_pe(fp, depth);
-    } else if (sig == 0x464c457f) { // THIS WONT WORK IF BINARY IS IN MSB FORMAT :(
+    } else if (sig == 0x464c457f || sig == 0x7f454c46) {
         handle_elf(fp, depth);
     } else {
         fputs("invalid file format!\n", stderr);
