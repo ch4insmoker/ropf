@@ -7,7 +7,7 @@ void rop_search(cs_insn *memory, size_t count, unsigned long long base_address, 
         return;
     }
 
-    std::cout << std::hex << memory[count].address << ": ";
+    std::cout << "0x" << std::hex << memory[count].address << ": ";
     for (size_t j = count - depth; j < count; j++) {
         std::cout <<  memory[j].mnemonic << " " << memory[j].op_str << "; ";
     }
@@ -47,16 +47,19 @@ void do_it(size_t  raw_data_size, unsigned long long base_address, unsigned int 
                 for (int i = 0; i < depth; i++) {
                     rop_search(insn, j, base_address, depth - i);
                     std::cout <<  insn[j].mnemonic << " " << insn[j].op_str << std::endl;
+                    total += 1;
                 }
             } else if (arch == CS_ARCH_AARCH64 && (strcmp(insn[j].mnemonic, "ret") == 0)) {
                 for (int i = 0; i < depth; i++) {
                     rop_search(insn, j, base_address, depth - i);
                     std::cout <<  insn[j].mnemonic << std::endl;
+                    total += 1;
                 }
             } else if (arch == CS_ARCH_ARM && (strcmp(insn[j].mnemonic, "ret") == 0)) {
                 for (int i = 0; i < depth; i++) {
                     rop_search(insn, j, base_address, depth - i);
                     std::cout <<  insn[j].mnemonic << std::endl;
+                    total += 1;
                 }
             }
         }
@@ -71,6 +74,7 @@ void do_it(size_t  raw_data_size, unsigned long long base_address, unsigned int 
 }
 
 void handle_pe(FILE *fp, unsigned int depth) {
+    total = 0;
     fseek(fp,0,SEEK_SET);
     fread(&DOS_HDR,  sizeof(ROP_IMAGE_DOS_HEADER), 1, fp);
 
@@ -84,21 +88,16 @@ void handle_pe(FILE *fp, unsigned int depth) {
          fseek(fp,DOS_HDR.e_lfanew + 4 + sizeof(ROP_IMAGE_FILE_HEADER) + sizeof(ROP_IMAGE_OPTIONAL_HEADER64) + (i * sizeof(ROP_IMAGE_SECTION_HEADER)) ,SEEK_SET);
          fread(&section, sizeof(ROP_IMAGE_SECTION_HEADER), 1, fp);
 
-
-        if (strcmp(".text", (char*)section.Name) == 0) {
-            length = section.Misc.VirtualSize;
+        if (section.Characteristics & ROP_IMAGE_SCN_MEM_EXECUTE) {
             VA = section.VirtualAddress;
             p_t_rawdata = section.PointerToRawData;
             raw_data_size = section.SizeOfRawData;
+            do_it(raw_data_size, entry_point + VA, depth, fp, p_t_rawdata, CS_ARCH_X86);
         }
-        // if (section.Characteristics & ROP_IMAGE_SCN_MEM_EXECUTE) {
-        //     printf("%s is executable section\n", (char*)section.Name);
-        // },
     }
-    // for pe files only support for x86-64 is implemented
-    do_it(raw_data_size, entry_point + VA, depth, fp, p_t_rawdata, CS_ARCH_X86);
-}
 
+    std::cout << "TOTAL NUMBER OF GADGETS: " << std::dec << total << std::endl;
+}
 
 cs_arch get_arch(elf64_hdr ELF_HDR) {
     if (ELF_HDR.e_machine == EM_AARCH64 && ELF_HDR.e_ident[EI_CLASS] == ELFCLASS64) {
@@ -114,6 +113,7 @@ cs_arch get_arch(elf64_hdr ELF_HDR) {
 }
 
 void handle_elf(FILE *fp, unsigned int depth) {
+    total = 0;
     fseek(fp,0,SEEK_SET);
     fread(&ELF_HDR, sizeof(elf64_hdr), 1, fp);
 
@@ -135,14 +135,14 @@ void handle_elf(FILE *fp, unsigned int depth) {
         fseek(fp, section_header_offset, SEEK_SET);
 
         fread(&ELF_SHDR, sizeof(elf64_shdr), 1, fp);
-        char* name = sections + ELF_SHDR.sh_name;
-        if (strcmp(name, ".text") == 0) {
+        if (ELF_SHDR.sh_flags & SHF_EXECINSTR) {
             raw_data_size = ELF_SHDR.sh_size;
+            p_t_rawdata = ELF_SHDR.sh_addr;
+            do_it(raw_data_size, p_t_rawdata, depth, fp, p_t_rawdata, arch);
         }
     }
 
-    unsigned long long base_address = ELF_HDR.e_entry;
-    do_it(raw_data_size, base_address, depth, fp, base_address, arch); // lmfa0
+    std::cout << "TOTAL NUMBER OF GADGETS: " << std::dec << total << std::endl;
     free(sections);
 }
 

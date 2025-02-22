@@ -3,12 +3,7 @@
 #include <inttypes.h>
 #include <capstone/capstone.h>
 #include <iostream>
-
-// typedef struct instr_list {
-//     ZydisDisassembledInstruction instruction;
-//     int size; // ?
-//     struct instr_list *next;
-// } instr_list;
+#include <map>
 
 typedef unsigned char BYTE;
 typedef unsigned short WORD;
@@ -376,6 +371,8 @@ struct elf64_sym {
 #define EM_X86_64  62
 #define EM_ARM     40
 
+#define SHF_EXECINSTR (1 << 2)
+
 
 ROP_IMAGE_DOS_HEADER DOS_HDR;
 ROP_IMAGE_NT_HEADERS64 NT_HDR;
@@ -385,8 +382,8 @@ elf64_hdr ELF_HDR;
 elf64_shdr ELF_SHDR;
 
 unsigned int depth;
+unsigned long long total;
 
-size_t  length;
 size_t  VA;
 size_t  p_t_rawdata;
 size_t  raw_data_size;

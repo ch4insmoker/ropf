@@ -5,9 +5,8 @@
 
 ## Todo
 1. add support for 32 bit..
-2. add support for other executable sections besides .text (if any)
-3. fix bug related to printing addresses
-4. add support for instructions other then ret (bx, jcc...)
+2. fix bug related to printing addresses
+3. add support for instructions other then ret (bx, jcc...)
 
 ## Compiling
 ```
