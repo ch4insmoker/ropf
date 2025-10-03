@@ -5,13 +5,11 @@
 
 ## Todo
 1. add support for 32 bit..
-2. fix bug related to printing addresses
-3. add support for instructions other then ret (bx, jcc...)
-4. IT DOESNT WORK (WIP)
+2. add support for instructions other then ret (bx, jcc...)
 
 ## Compiling
 ```
-git clone --recursive https://github.com/ch4insmoker/ropf // recursive to include capstone lib
+git clone https://github.com/ch4insmoker/ropf
 cmake -B build
 cmake --build build
 ```

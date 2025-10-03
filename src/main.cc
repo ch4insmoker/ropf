@@ -7,8 +7,8 @@ void rop_search(cs_insn *memory, size_t count, unsigned long long base_address, 
         return;
     }
 
-    std::cout << "0x" << std::hex << memory[count].address << ": ";
     for (size_t j = count - depth; j < count; j++) {
+        std::cout << "0x" << std::hex << memory[j].address << ": ";
         std::cout <<  memory[j].mnemonic << " " << memory[j].op_str << "; ";
     }
 }
@@ -22,7 +22,7 @@ void do_it(size_t  raw_data_size, unsigned long long base_address, unsigned int 
 
     if (arch == CS_ARCH_X86) {
         mode = CS_MODE_64;
-    } else if (arch == CS_ARCH_ARM64) {
+    } else if (arch == CS_ARCH_AARCH64) {
         mode = CS_MODE_LITTLE_ENDIAN;
     } else if (arch == CS_ARCH_ARM) {
         mode = CS_MODE_ARM; // future check if its thumb or not
@@ -49,7 +49,7 @@ void do_it(size_t  raw_data_size, unsigned long long base_address, unsigned int 
                     std::cout <<  insn[j].mnemonic << " " << insn[j].op_str << std::endl;
                     total += 1;
                 }
-            } else if (arch == CS_ARCH_ARM64 && (strcmp(insn[j].mnemonic, "ret") == 0)) {
+            } else if (arch == CS_ARCH_AARCH64 && (strcmp(insn[j].mnemonic, "ret") == 0)) {
                 for (int i = 0; i < depth; i++) {
                     rop_search(insn, j, base_address, depth - i);
                     std::cout <<  insn[j].mnemonic << std::endl;
@@ -101,7 +101,7 @@ void handle_pe(FILE *fp, unsigned int depth) {
 
 cs_arch get_arch(elf64_hdr ELF_HDR) {
     if (ELF_HDR.e_machine == EM_AARCH64 && ELF_HDR.e_ident[EI_CLASS] == ELFCLASS64) {
-        return CS_ARCH_ARM64;
+        return CS_ARCH_AARCH64;
     } else if (ELF_HDR.e_machine == EM_X86_64 && ELF_HDR.e_ident[EI_CLASS] == ELFCLASS64) {
         return CS_ARCH_X86;
     } else if (ELF_HDR.e_machine == EM_ARM && ELF_HDR.e_ident[EI_CLASS] == ELFCLASS32) {
