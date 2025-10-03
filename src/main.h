@@ -320,7 +320,7 @@ typedef struct elf64_phdr {
     Elf64_Xword p_filesz;
     Elf64_Xword p_memsz;
     Elf64_Xword p_align;
-};
+} elf64_phdr;
 
 struct elf64_dyn {
     Elf64_Sxword d_tag;
