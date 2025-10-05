@@ -3,13 +3,13 @@
 void rop_search(cs_insn *memory, size_t count, unsigned long long base_address, unsigned int depth) {
 
     if (memory[count].address < base_address) {
-        std::cout << std::hex << memory[count].address;
+        printf("0x%llx", memory[count].address);
         return;
     }
 
+    printf("0x%llx: ", memory[count - depth].address);
     for (size_t j = count - depth; j < count; j++) {
-        std::cout << "0x" << std::hex << memory[j].address << ": ";
-        std::cout <<  memory[j].mnemonic << " " << memory[j].op_str << "; ";
+        printf("%s %s; ", memory[j].mnemonic, memory[j].op_str);
     }
 }
 
@@ -30,12 +30,12 @@ void do_it(size_t  raw_data_size, unsigned long long base_address, unsigned int 
 
     fseek(fp, 0 ,SEEK_SET);
     uint8_t *section_buffer = (uint8_t *)malloc(raw_data_size);
-    std::memset(section_buffer, 0, raw_data_size);
+    memset(section_buffer, 0, raw_data_size);
     fseek(fp, p_t_rawdata ,SEEK_SET);
     fread(section_buffer, raw_data_size, 1, fp);
 
     if (cs_open(arch, mode, &handle) != CS_ERR_OK) {
-        std::cout << "Error occurred" << std::endl;
+        fputs("Error occurred\n", stderr);
         exit(-1);
     }
 
@@ -46,19 +46,19 @@ void do_it(size_t  raw_data_size, unsigned long long base_address, unsigned int 
             if (insn[j].bytes[0] == 0xc3 && arch == CS_ARCH_X86) {
                 for (int i = 0; i < depth; i++) {
                     rop_search(insn, j, base_address, depth - i);
-                    std::cout <<  insn[j].mnemonic << " " << insn[j].op_str << std::endl;
+                    printf("%s %s\n", insn[j].mnemonic, insn[j].op_str);
                     total += 1;
                 }
             } else if (arch == CS_ARCH_AARCH64 && (strcmp(insn[j].mnemonic, "ret") == 0)) {
                 for (int i = 0; i < depth; i++) {
                     rop_search(insn, j, base_address, depth - i);
-                    std::cout <<  insn[j].mnemonic << std::endl;
+                    printf("%s\n", insn[j].mnemonic);
                     total += 1;
                 }
             } else if (arch == CS_ARCH_ARM && (strcmp(insn[j].mnemonic, "ret") == 0)) {
                 for (int i = 0; i < depth; i++) {
                     rop_search(insn, j, base_address, depth - i);
-                    std::cout <<  insn[j].mnemonic << std::endl;
+                    printf("%s\n", insn[j].mnemonic);
                     total += 1;
                 }
             }
@@ -66,7 +66,7 @@ void do_it(size_t  raw_data_size, unsigned long long base_address, unsigned int 
 
         cs_free(insn, count);
     } else {
-        std::cout << "Failed to disassemble given code!" << std::endl;
+        fputs("Failed to disassemble given code!\n", stderr);
     }
 
     cs_close(&handle);
@@ -96,7 +96,7 @@ void handle_pe(FILE *fp, unsigned int depth) {
         }
     }
 
-    std::cout << "TOTAL NUMBER OF GADGETS: " << std::dec << total << std::endl;
+    printf("TOTAL NUMBER OF GADGETS: %llu\n", total);
 }
 
 cs_arch get_arch(elf64_hdr ELF_HDR) {
@@ -107,7 +107,7 @@ cs_arch get_arch(elf64_hdr ELF_HDR) {
     } else if (ELF_HDR.e_machine == EM_ARM && ELF_HDR.e_ident[EI_CLASS] == ELFCLASS32) {
         return CS_ARCH_ARM;
     } else {
-        std::cout << "idk man probably not implemented" << std::endl;
+        fputs("Not supported!\n", stderr);
         exit(-1);
     }
 }
@@ -142,7 +142,7 @@ void handle_elf(FILE *fp, unsigned int depth) {
         }
     }
 
-    std::cout << "TOTAL NUMBER OF GADGETS: " << std::dec << total << std::endl;
+    printf("TOTAL NUMBER OF GADGETS: %llu\n", total);
     free(sections);
 }
 
