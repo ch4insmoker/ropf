@@ -18,5 +18,5 @@ unsigned int depth;
 unsigned long long total;
 
 size_t  VA;
-size_t  p_t_rawdata;
+unsigned long p_t_rawdata;
 size_t  raw_data_size;

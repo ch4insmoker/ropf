@@ -13,7 +13,7 @@ void rop_search(cs_insn *memory, size_t count, unsigned long long base_address, 
     }
 }
 
-void do_it(size_t  raw_data_size, unsigned long long base_address, unsigned int depth,FILE *fp, size_t  p_t_rawdata, cs_arch arch) {
+void do_it(size_t  raw_data_size, unsigned long long base_address, unsigned int depth, FILE *fp,  unsigned long  p_t_rawdata, cs_arch arch) {
 
     cs_insn *insn;
     csh handle;
@@ -44,19 +44,19 @@ void do_it(size_t  raw_data_size, unsigned long long base_address, unsigned int 
     if (count > 0) {
         for (size_t j = 0; j < count; j++) {
             if (insn[j].bytes[0] == 0xc3 && arch == CS_ARCH_X86) {
-                for (int i = 0; i < depth; i++) {
+                for (unsigned int i = 0; i < depth; i++) {
                     rop_search(insn, j, base_address, depth - i);
                     printf("%s %s\n", insn[j].mnemonic, insn[j].op_str);
                     total += 1;
                 }
             } else if (arch == CS_ARCH_AARCH64 && (strcmp(insn[j].mnemonic, "ret") == 0)) {
-                for (int i = 0; i < depth; i++) {
+                for (unsigned int i = 0; i < depth; i++) {
                     rop_search(insn, j, base_address, depth - i);
                     printf("%s\n", insn[j].mnemonic);
                     total += 1;
                 }
             } else if (arch == CS_ARCH_ARM && (strcmp(insn[j].mnemonic, "ret") == 0)) {
-                for (int i = 0; i < depth; i++) {
+                for (unsigned int i = 0; i < depth; i++) {
                     rop_search(insn, j, base_address, depth - i);
                     printf("%s\n", insn[j].mnemonic);
                     total += 1;
@@ -74,17 +74,16 @@ void do_it(size_t  raw_data_size, unsigned long long base_address, unsigned int 
 }
 
 void handle_pe(FILE *fp, unsigned int depth) {
-    total = 0;
     fseek(fp,0,SEEK_SET);
     fread(&DOS_HDR,  sizeof(ROP_IMAGE_DOS_HEADER), 1, fp);
 
     fseek(fp,DOS_HDR.e_lfanew,SEEK_SET);
     fread(&NT_HDR, sizeof(ROP_IMAGE_NT_HEADERS64), 1, fp);
     
-    DWORD entry_point = NT_HDR.OptionalHeader.ImageBase;
+    ULONGLONG entry_point = NT_HDR.OptionalHeader.ImageBase;
     DWORD num_of_sections = NT_HDR.FileHeader.NumberOfSections;
 
-    for (int i = 0; i < num_of_sections; i++ ) {
+    for (unsigned int i = 0; i < num_of_sections; i++ ) {
          fseek(fp,DOS_HDR.e_lfanew + 4 + sizeof(ROP_IMAGE_FILE_HEADER) + sizeof(ROP_IMAGE_OPTIONAL_HEADER64) + (i * sizeof(ROP_IMAGE_SECTION_HEADER)) ,SEEK_SET);
          fread(&section, sizeof(ROP_IMAGE_SECTION_HEADER), 1, fp);
 
@@ -95,8 +94,6 @@ void handle_pe(FILE *fp, unsigned int depth) {
             do_it(raw_data_size, entry_point + VA, depth, fp, p_t_rawdata, CS_ARCH_X86);
         }
     }
-
-    printf("TOTAL NUMBER OF GADGETS: %llu\n", total);
 }
 
 cs_arch get_arch(elf64_hdr ELF_HDR) {
@@ -113,7 +110,6 @@ cs_arch get_arch(elf64_hdr ELF_HDR) {
 }
 
 void handle_elf(FILE *fp, unsigned int depth) {
-    total = 0;
     fseek(fp,0,SEEK_SET);
     fread(&ELF_HDR, sizeof(elf64_hdr), 1, fp);
 
@@ -121,28 +117,27 @@ void handle_elf(FILE *fp, unsigned int depth) {
 
     int shstrndx = ELF_HDR.e_shstrndx;
 
-    off_t shstrtab_offset = ELF_HDR.e_shoff + shstrndx * ELF_HDR.e_shentsize;
+    unsigned long shstrtab_offset = (unsigned long)ELF_HDR.e_shoff + shstrndx * ELF_HDR.e_shentsize;
     fseek(fp, shstrtab_offset, SEEK_SET);
     fread(&ELF_SHDR, sizeof(elf64_shdr), 1, fp);
 
     char *sections = (char *)malloc(ELF_SHDR.sh_size);
-    fseek(fp, ELF_SHDR.sh_offset, SEEK_SET);
+    fseek(fp, (unsigned long)ELF_SHDR.sh_offset, SEEK_SET);
     fread(sections, ELF_SHDR.sh_size, 1, fp);
 
     for (int i = 0; i < ELF_HDR.e_shnum; i++) {
-        off_t section_header_offset = ELF_HDR.e_shoff + i * ELF_HDR.e_shentsize;
+        unsigned long section_header_offset = (unsigned long)(ELF_HDR.e_shoff + i * ELF_HDR.e_shentsize);
 
         fseek(fp, section_header_offset, SEEK_SET);
 
         fread(&ELF_SHDR, sizeof(elf64_shdr), 1, fp);
         if (ELF_SHDR.sh_flags & SHF_EXECINSTR) {
             raw_data_size = ELF_SHDR.sh_size;
-            p_t_rawdata = ELF_SHDR.sh_addr;
+            p_t_rawdata = (unsigned long)ELF_SHDR.sh_addr;
             do_it(raw_data_size, p_t_rawdata, depth, fp, p_t_rawdata, arch);
         }
     }
 
-    printf("TOTAL NUMBER OF GADGETS: %llu\n", total);
     free(sections);
 }
 
@@ -171,6 +166,8 @@ int main(int argc, char**argv) {
     } else {
         fputs("invalid file format!\n", stderr);
     }
+
+    printf("[*] TOTAL NUMBER OF GADGETS: %llu\n", total);
 
     fclose(fp);
 }
